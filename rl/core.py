@@ -247,7 +247,7 @@ class Agent(object):
 
         return history
 
-    def test(self, env, nb_episodes=1, action_repetition=1, callbacks=None, visualize=True,
+    def test(self, env, nb_episodes=1, action_repetition=1, callbacks=None,
              nb_max_episode_steps=None, nb_max_start_steps=0, start_step_policy=None, verbose=1):
         """Callback that is called before training begins.
 
@@ -291,8 +291,7 @@ class Agent(object):
 
         if verbose >= 1:
             callbacks += [TestLogger()]
-        if visualize:
-            callbacks += [Visualizer()]
+
         history = History()
         callbacks += [history]
         callbacks = CallbackList(callbacks)

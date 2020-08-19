@@ -1,11 +1,17 @@
+import os
 import random
+
+import gym
+from ple import PLE
+from ple.games import Pong, Catcher, Pixelcopter, FlappyBird, MonsterKong, PuckWorld, RaycastMaze, Snake, WaterWorld
 
 
 class EnvAdapter:
 
-    def __init__(self, env, render=False):
-        self.env = env
+    def __init__(self, env_name, render=False):
+        self.env_name = env_name
         self.render = render
+        self.env = None
 
     def reset(self):
         raise NotImplementedError('reset method must be implemented')
@@ -22,8 +28,15 @@ class EnvAdapter:
         """must return a random action"""
         raise NotImplementedError('get_random_action method must be implemented')
 
+    def get_input_shape(self):
+        raise NotImplementedError('get_input_shape method must be implemented')
+
 
 class GymEnvAdapter(EnvAdapter):
+
+    def __init__(self, *args, **kwargs):
+        super(GymEnvAdapter, self).__init__(*args, **kwargs)
+        self.env = gym.make(self.env_name)
 
     def reset(self):
         return self.env.reset()
@@ -44,9 +57,35 @@ class GymEnvAdapter(EnvAdapter):
     def get_random_action(self):
         return self.env.action_space.sample()
 
+    def get_input_shape(self):
+        return self.env.observation_space.shape
+
+
+envs_lookup_table = {
+    'pong': Pong,
+    'catcher': Catcher,
+    'pixelcopter': Pixelcopter,
+    'flappybird': FlappyBird,
+    'monsterkong': MonsterKong,
+    'puckworld': PuckWorld,
+    'raycastmaze': RaycastMaze,
+    'snake': Snake,
+    'waterworld': WaterWorld,
+}
+
 
 class PleEnvAdapter(EnvAdapter):
-    """Pygame learning env adapter"""
+
+    def __init__(self, *args, **kwargs):
+        super(PleEnvAdapter, self).__init__(*args, **kwargs)
+
+        if not self.render:
+            os.putenv('SDL_VIDEODRIVER', 'fbcon')
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
+
+        Game = envs_lookup_table[self.env_name]
+        self.env = PLE(Game(), display_screen=self.render, force_fps=not self.render)
+        self.env.init()
 
     def reset(self):
         self.env.reset_game()
@@ -55,9 +94,9 @@ class PleEnvAdapter(EnvAdapter):
         return observation
 
     def step(self, action) -> (object, float, bool):
+        reward = self.env.act(self.env.getActionSet()[action])
         observation = self.env.getGameState()
         observation = [val for key, val in observation.items()]
-        reward = self.env.act(self.env.getActionSet()[action])
         done = self.env.game_over()
         return observation, reward, done, {}
 
@@ -66,3 +105,6 @@ class PleEnvAdapter(EnvAdapter):
 
     def get_random_action(self):
         return random.randint(0, len(self.env.getActionSet()) - 1)
+
+    def get_input_shape(self):
+        return (len(self.env.getGameState()),)
